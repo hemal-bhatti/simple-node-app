@@ -60,24 +60,17 @@ pipeline {
             steps {
                 echo "Executing deployment on Target EC2 (${TARGET_INSTANCE_ID}) using AWS SSM..."
                 script {
-                    // Enclosing the shell commands that will run inside the target App EC2 instance
+                    // Commands that will run inside your APP EC2 instance
                     def deploymentCommands = [
                         "cd ${APP_DIR}",
-                        // Use sed to search for the image line in docker-compose.yml and swap it with the new tag
                         "sed -i 's|image: ${DOCKER_HUB_USER}/${IMAGE_NAME}:.*|image: ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}|g' docker-compose.yml",
-                        // Pull the new explicit image layer
                         "docker compose pull || docker-compose pull",
-                        // Recreate the container with zero-downtime flags if supported, or standard up
                         "docker compose up -d --remove-orphans || docker-compose up -d --remove-orphans"
                     ].join(" && ")
 
-                    // Execute via AWS SSM using the Jenkins Agent's IAM Instance Profile
+                    // Execute using proper single-line escaping for the parameters block
                     sh """
-                        aws ssm send-command \
-                            --document-name "AWS-RunShellScript" \
-                            --instance-ids "${TARGET_INSTANCE_ID}" \
-                            --parameters 'commands=["${deploymentCommands}"]' \
-                            --region "${AWS_REGION}"
+                        aws ssm send-command --document-name "AWS-RunShellScript" --instance-ids "${TARGET_INSTANCE_ID}" --parameters commands=['${deploymentCommands}'] --region "${AWS_REGION}"
                     """
                 }
             }
