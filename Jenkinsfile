@@ -57,23 +57,21 @@ pipeline {
         }
 
         stage('Deploy via SSM Run Command') {
-            steps {
-                echo "Executing deployment on Target EC2 (${TARGET_INSTANCE_ID}) using AWS SSM..."
-                script {
-                    // 1. Build the command using regular single quotes inside a clean block
-                    def inlineCmd = "cd /var/www/simple-app/simple-backend && sed -i 's|image: hemal45/simple-node:.*|image: hemal45/simple-node:${IMAGE_TAG}|g' docker-compose.yml && docker compose pull && docker compose up -d --remove-orphans"
+    steps {
+        echo "Executing deployment on Target EC2 (${TARGET_INSTANCE_ID}) using AWS SSM..."
+        script {
+            def deployCmd = "cd ${APP_DIR} && sed -i 's|image: ${DOCKER_HUB_USER}/${IMAGE_NAME}:.*|image: ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}|g' docker-compose.yml && docker compose pull && docker compose up -d --remove-orphans"
 
-                    // 2. Execute using triple double-quotes, wrapping the command safely in single quotes for the AWS CLI
-                    sh """
-                        aws ssm send-command \
-                            --document-name "AWS-RunShellScript" \
-                            --instance-ids "${TARGET_INSTANCE_ID}" \
-                            --region "${AWS_REGION}" \
-                            --parameters commands='${inlineCmd}'
-                    """
-                }
-            }
+            sh """
+                aws ssm send-command \
+                    --document-name "AWS-RunShellScript" \
+                    --instance-ids "${TARGET_INSTANCE_ID}" \
+                    --region "${AWS_REGION}" \
+                    --parameters 'commands=["${deployCmd}"]'
+            """
         }
+    }
+}
         }
 
 
