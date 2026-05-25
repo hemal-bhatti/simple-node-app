@@ -60,14 +60,17 @@ pipeline {
     steps {
         echo "Executing deployment on Target EC2 (${TARGET_INSTANCE_ID}) using AWS SSM..."
         script {
-            def deployCmd = "cd ${APP_DIR} && sed -i 's|image: ${DOCKER_HUB_USER}/${IMAGE_NAME}:.*|image: ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}|g' docker-compose.yml && docker compose pull && docker compose up -d --remove-orphans"
+            def deployCmd = """cd ${APP_DIR} && sed -i 's|image: ${DOCKER_HUB_USER}/${IMAGE_NAME}:.*|image: ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}|g' docker-compose.yml && docker compose pull && docker compose up -d --remove-orphans"""
+
+            // Base64 encode to avoid ALL shell escaping issues
+            def encodedCmd = deployCmd.bytes.encodeBase64().toString()
 
             sh """
                 aws ssm send-command \
                     --document-name "AWS-RunShellScript" \
                     --instance-ids "${TARGET_INSTANCE_ID}" \
                     --region "${AWS_REGION}" \
-                    --parameters 'commands=["${deployCmd}"]'
+                    --parameters commands=["echo ${encodedCmd} | base64 -d | bash"]
             """
         }
     }
