@@ -60,17 +60,8 @@ pipeline {
             steps {
                 echo "Executing deployment on Target EC2 (${TARGET_INSTANCE_ID}) using AWS SSM..."
                 script {
-                    // Define the commands precisely without using forward slashes inside sed
-                    def inlineCommands = "cd /var/www/simple-app/simple-backend && sed -i 's|image: hemal45/simple-node:.*|image: hemal45/simple-node:${IMAGE_TAG}|g' docker-compose.yml && (docker compose pull || docker-compose pull) && (docker compose up -d --remove-orphans || docker-compose up -d --remove-orphans)"
-
-                    // Wrap the parameter string in strict double-quotes and the parameter contents in single-quotes
-                    sh """
-                        aws ssm send-command \
-                            --document-name "AWS-RunShellScript" \
-                            --instance-ids "${TARGET_INSTANCE_ID}" \
-                            --parameters commands='${inlineCommands}' \
-                            --region "${AWS_REGION}"
-                    """
+                    // We escape the quotes (\") so Bash handles them directly, keeping the string perfectly intact
+                    sh "aws ssm send-command --document-name \"AWS-RunShellScript\" --instance-ids \"${TARGET_INSTANCE_ID}\" --region \"${AWS_REGION}\" --parameters 'commands=[\"cd /var/www/simple-app/simple-backend && sed -i \\'s\|image: hemal45/simple-node:.*\|image: hemal45/simple-node:${IMAGE_TAG}\|g\\' docker-compose.yml && docker compose pull && docker compose up -d --remove-orphans\"]'"
                 }
             }
         }
