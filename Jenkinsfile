@@ -60,20 +60,20 @@ pipeline {
             steps {
                 echo "Executing deployment on Target EC2 (${TARGET_INSTANCE_ID}) using AWS SSM..."
                 script {
-                    // Commands that will run inside your APP EC2 instance
-                    def deploymentCommands = [
-                        "cd ${APP_DIR}",
-                        "sed -i 's|image: ${DOCKER_HUB_USER}/${IMAGE_NAME}:.*|image: ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}|g' docker-compose.yml",
-                        "docker compose pull || docker-compose pull",
-                        "docker compose up -d --remove-orphans || docker-compose up -d --remove-orphans"
-                    ].join(" && ")
+                    // Define the commands precisely without using forward slashes inside sed
+                    def inlineCommands = "cd /var/www/simple-app/simple-backend && sed -i 's|image: hemal45/simple-node:.*|image: hemal45/simple-node:${IMAGE_TAG}|g' docker-compose.yml && (docker compose pull || docker-compose pull) && (docker compose up -d --remove-orphans || docker-compose up -d --remove-orphans)"
 
-                    // Execute using proper single-line escaping for the parameters block
+                    // Wrap the parameter string in strict double-quotes and the parameter contents in single-quotes
                     sh """
-                        aws ssm send-command --document-name "AWS-RunShellScript" --instance-ids "${TARGET_INSTANCE_ID}" --parameters commands=['${deploymentCommands}'] --region "${AWS_REGION}"
+                        aws ssm send-command \
+                            --document-name "AWS-RunShellScript" \
+                            --instance-ids "${TARGET_INSTANCE_ID}" \
+                            --parameters commands='${inlineCommands}' \
+                            --region "${AWS_REGION}"
                     """
                 }
             }
+        }
         }
     }
 
